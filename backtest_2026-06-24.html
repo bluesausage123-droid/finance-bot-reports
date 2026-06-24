@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>回測查詢報表 2026-06-24</title>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
+  background: #F4F6F9; color: #222; padding: 16px; line-height: 1.5;
+}
+.wrap { max-width: 1100px; margin: 0 auto; }
+header h1 { margin: 0 0 4px; color: #1F3A5F; font-size: 22px; }
+header .meta { color: #666; font-size: 13px; margin-bottom: 16px; }
+.panel { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 14px; margin-bottom: 14px; }
+.filters .row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
+.filters label { display: flex; flex-direction: column; font-size: 12px; color: #555; gap: 4px; }
+.filters input[type=date], .filters select, .filters input[type=search] {
+  font-size: 14px; padding: 6px 8px; border: 1px solid #CCD; border-radius: 6px; background: #fff; min-width: 0;
+}
+.filters input[type=search] { flex: 1; min-width: 160px; }
+.btn { font-size: 14px; padding: 7px 14px; border-radius: 6px; border: none; cursor: pointer; }
+.btn-primary { background: #1F3A5F; color: #fff; }
+.btn-primary:hover { background: #2C507F; }
+.btn-secondary { background: #E5EAF1; color: #1F3A5F; }
+.btn-secondary:hover { background: #D4DCE7; }
+.btn:disabled { opacity: .6; cursor: not-allowed; }
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.stats .card { background: #fff; border-radius: 10px; padding: 12px 8px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.stats .label { color: #888; font-size: 11px; margin-bottom: 4px; }
+.stats .value { font-size: 20px; font-weight: bold; color: #1F3A5F; }
+@media (max-width: 900px) {
+  .stats { grid-template-columns: repeat(3, 1fr); }
+}
+.toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.toolbar .hint { color: #888; font-size: 12px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  background: #1F3A5F; color: #fff; padding: 8px 6px; position: sticky; top: 0;
+  text-align: center; font-weight: 600; white-space: nowrap;
+}
+thead th.sortable { cursor: pointer; user-select: none; }
+thead th.sortable:hover { background: #2C507F; }
+thead th .sort-arrow { font-size: 10px; margin-left: 3px; opacity: .7; }
+tbody td { padding: 7px 6px; border-bottom: 1px solid #EEE; text-align: center; white-space: nowrap; }
+tbody tr:nth-child(even) { background: #F9FBFC; }
+tbody tr:hover { background: #EEF3F8; }
+.dir-long { color: #C62828; font-weight: bold; }
+.dir-short { color: #2E7D32; font-weight: bold; }
+.ret-pos { color: #C62828; }
+.ret-neg { color: #2E7D32; }
+.result-correct { color: #2E7D32; font-weight: bold; }
+.result-wrong { color: #C62828; font-weight: bold; }
+.result-pending { color: #999; }
+.empty-msg { padding: 30px; text-align: center; color: #999; }
+.capture-header { display: none; padding: 14px 6px 10px; }
+@media (max-width: 640px) {
+  body { padding: 10px; }
+  header h1 { font-size: 18px; }
+  .stats { grid-template-columns: 1fr; }
+  .stats .value { font-size: 18px; }
+  .filters input[type=search] { width: 100%; flex: 1 1 100%; }
+  table { font-size: 12px; }
+  thead th, tbody td { padding: 6px 4px; }
+}
+.capturing .capture-header { display: block; }
+.capturing .filters, .capturing .toolbar, .capturing .quick-presets { display: none !important; }
+.preset-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.preset-label { color: #555; font-size: 12px; margin-right: 4px; }
+.btn-mini { padding: 4px 11px; font-size: 12px; border-radius: 999px; background: #E5EAF1; color: #1F3A5F; border: 1px solid transparent; cursor: pointer; }
+.btn-mini:hover { background: #D4DCE7; }
+.btn-mini.active { background: #1F3A5F; color: #fff; }
+.filters input[type=number] { width: 80px; font-size: 14px; padding: 6px 8px; border: 1px solid #CCD; border-radius: 6px; background: #fff; }
+.chart-panel .chart-title { font-weight: bold; color: #1F3A5F; font-size: 15px; margin-bottom: 2px; }
+.chart-panel .chart-hint { color: #888; font-size: 11px; margin-bottom: 10px; }
+.chart-wrap { position: relative; height: 280px; }
+.chart-empty { text-align: center; color: #999; padding: 60px 10px; font-size: 13px; }
+@media (max-width: 640px) {
+  .chart-wrap { height: 220px; }
+  .filters input[type=number] { width: 70px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="captureArea">
+  <header>
+    <h1>📊 回測查詢報表</h1>
+    <div class="meta">純技術選股 v2 · 產製於 2026-06-24 09:31 · 共 <span id="totalCount">0</span> 筆紀錄</div>
+  </header>
+
+  <div class="capture-header panel">
+    <div style="font-weight:bold;color:#1F3A5F;font-size:16px;">📊 回測查詢報表（PDF 匯出）</div>
+    <div id="captureMeta" style="color:#666;font-size:12px;margin-top:4px;"></div>
+  </div>
+
+  <div class="panel quick-presets">
+    <div class="preset-row">
+      <span class="preset-label">⚡ 快速選取：</span>
+      <button class="btn-mini" data-preset="7">近 7 天</button>
+      <button class="btn-mini" data-preset="30">近 30 天</button>
+      <button class="btn-mini" data-preset="month">本月</button>
+      <button class="btn-mini" data-preset="prevmonth">上月</button>
+      <button class="btn-mini" data-preset="all">全部</button>
+    </div>
+  </div>
+
+  <div class="panel filters">
+    <div class="row">
+      <label>起始日<input type="date" id="dateStart"></label>
+      <label>結束日<input type="date" id="dateEnd"></label>
+      <label>方向
+        <select id="dirSelect">
+          <option value="">全部</option>
+          <option value="做多">做多</option>
+          <option value="做空">做空</option>
+        </select>
+      </label>
+      <label>結果
+        <select id="resultSelect">
+          <option value="">全部</option>
+          <option value="pending">進行中</option>
+          <option value="win">已贏 ✓</option>
+          <option value="loss">已輸 ✗</option>
+        </select>
+      </label>
+      <label>出場原因
+        <select id="exitReasonSelect">
+          <option value="">全部</option>
+          <option value="停損">停損</option>
+          <option value="目標">目標</option>
+          <option value="跳空停損">跳空停損</option>
+          <option value="到期">到期</option>
+        </select>
+      </label>
+      <label>評分下限<input type="number" id="scoreMin" placeholder="-100" min="-100" max="100" step="1"></label>
+      <label>評分上限<input type="number" id="scoreMax" placeholder="100" min="-100" max="100" step="1"></label>
+      <label style="flex:1;min-width:160px;">關鍵字
+        <input type="search" id="searchBox" placeholder="代號或公司名...">
+      </label>
+      <button class="btn btn-secondary" id="resetBtn">重設</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="card"><div class="label">樣本數（已結算）</div><div class="value" id="statSamples">—</div></div>
+    <div class="card"><div class="label">勝率</div><div class="value" id="statWinrate">—</div></div>
+    <div class="card"><div class="label">平均報酬（事件結算）</div><div class="value" id="statAvgReturn">—</div></div>
+    <div class="card"><div class="label">平均 MAE（最大不利）</div><div class="value" id="statAvgMae">—</div></div>
+    <div class="card"><div class="label">跳空認損次數</div><div class="value" id="statGapLoss">—</div></div>
+  </div>
+
+  <div class="panel chart-panel">
+    <div class="chart-title">📈 累積策略報酬曲線</div>
+    <div class="chart-hint">使用「實際報酬%」（事件結算：跳空/觸停損/觸目標/到期），依推薦日累加每日平均報酬</div>
+    <div class="chart-wrap"><canvas id="cumChart"></canvas></div>
+    <div class="chart-empty" id="chartEmpty" style="display:none;">尚無已結算的紀錄</div>
+  </div>
+
+  <div class="panel toolbar">
+    <button class="btn btn-primary" id="exportPdfBtn">📥 下載目前畫面 PDF</button>
+    <span class="hint">依目前篩選條件產生 PDF</span>
+  </div>
+
+  <div class="panel">
+    <div class="table-wrap">
+      <table id="resultTable">
+        <thead>
+          <tr>
+            <th class="sortable" data-key="date">推薦日<span class="sort-arrow"></span></th>
+            <th class="sortable" data-key="code">代號<span class="sort-arrow"></span></th>
+            <th>公司</th>
+            <th>方向</th>
+            <th class="sortable" data-key="entry">進場<span class="sort-arrow"></span></th>
+            <th>停損</th>
+            <th>目標</th>
+            <th>出場日</th>
+            <th>出場價</th>
+            <th class="sortable" data-key="actualRet">報酬%<span class="sort-arrow"></span></th>
+            <th>出場原因</th>
+            <th class="sortable" data-key="mae">MAE%<span class="sort-arrow"></span></th>
+            <th>天</th>
+            <th>結果</th>
+          </tr>
+        </thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+      <div class="empty-msg" id="emptyMsg" style="display:none;">無符合條件的資料</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const RECORDS = [{"date": "2026-06-24", "session": "早報", "code": "1503", "name": "士電", "direction": "做多", "score": "53", "entry": "242", "stop": "237.16", "target": "251.68", "entryClose": "242", "t7": "", "ret": "", "result": "", "exitDate": "", "exitPrice": "", "actualRet": "", "exitReason": "", "mae": "", "holdingDays": ""}, {"date": "2026-06-24", "session": "早報", "code": "2330", "name": "台積電", "direction": "做多", "score": "43", "entry": "2490", "stop": "2440.20", "target": "2589.60", "entryClose": "2490", "t7": "", "ret": "", "result": "", "exitDate": "", "exitPrice": "", "actualRet": "", "exitReason": "", "mae": "", "holdingDays": ""}, {"date": "2026-06-23", "session": "早報", "code": "1503", "name": "士電", "direction": "做多", "score": "63", "entry": "245", "stop": "240.10", "target": "254.80", "entryClose": "245", "t7": "", "ret": "", "result": "", "exitDate": "", "exitPrice": "", "actualRet": "", "exitReason": "", "mae": "", "holdingDays": ""}, {"date": "2026-06-23", "session": "早報", "code": "2330", "name": "台積電", "direction": "做多", "score": "53", "entry": "2510", "stop": "2459.80", "target": "2610.40", "entryClose": "2510", "t7": "", "ret": "", "result": "", "exitDate": "", "exitPrice": "", "actualRet": "", "exitReason": "", "mae": "", "holdingDays": ""}, {"date": "2026-06-22", "session": "早報", "code": "1503", "name": "士電", "direction": "做多", "score": "70", "entry": "241.50", "stop": "236.67", "target": "251.16", "entryClose": "241.50", "t7": "", "ret": "", "result": "", "exitDate": "", "exitPrice": "", "actualRet": "", "exitReason": "", "mae": "", "holdingDays": ""}, {"date": "2026-06-22", "session": "早報", "code": "2330", "name": "台積電", "direction": "做多", "score": "60", "entry": "2410", "stop": "2361.80", "target": "2506.40", "entryClose": "2410", "t7": "", "ret": "", "result": "", "exitDate": "", "exitPrice": "", "actualRet": "", "exitReason": "", "mae": "", "holdingDays": ""}, {"date": "2026-06-18", "session": "早報", "code": "2379", "name": "瑞昱", "direction": "做多", "score": "63", "entry": "745", "stop": "730.10", "target": "774.80", "entryClose": "745", "t7": "", "ret": "", "result": "✓", "exitDate": "2026-06-23", "exitPrice": "885.10", "actualRet": "+18.81", "exitReason": "移動停損", "mae": "+0.00", "holdingDays": "2"}, {"date": "2026-06-18", "session": "早報", "code": "2885", "name": "元大金", "direction": "做多", "score": "63", "entry": "66.70", "stop": "65.37", "target": "69.37", "entryClose": "66.70", "t7": "", "ret": "", "result": "✓", "exitDate": "2026-06-23", "exitPrice": "67.67", "actualRet": "+1.45", "exitReason": "移動停損", "mae": "+0.00", "holdingDays": "2"}, {"date": "2026-06-17", "session": "早報", "code": "2379", "name": "瑞昱", "direction": "做多", "score": "77", "entry": "678", "stop": "664.44", "target": "705.12", "entryClose": "678", "t7": "", "ret": "", "result": "✓", "exitDate": "2026-06-23", "exitPrice": "886.44", "actualRet": "+30.74", "exitReason": "移動停損", "mae": "+0.00", "holdingDays": "3"}, {"date": "2026-06-17", "session": "早報", "code": "2885", "name": "元大金", "direction": "做多", "score": "63", "entry": "59.60", "stop": "58.41", "target": "61.98", "entryClose": "59.60", "t7": "", "ret": "", "result": "✓", "exitDate": "2026-06-23", "exitPrice": "67.81", "actualRet": "+13.78", "exitReason": "移動停損", "mae": "+0.00", "holdingDays": "3"}, {"date": "2026-06-16", "session": "早報", "code": "1303", "name": "南亞", "direction": "做多", "score": "77", "entry": "117", "stop": "114.66", "target": "121.68", "entryClose": "117", "t7": "154.50", "ret": "+32.05", "result": "✗", "exitDate": "2026-06-17", "exitPrice": "114.50", "actualRet": "-2.14", "exitReason": "跳空停損", "mae": "-2.99", "holdingDays": "1"}, {"date": "2026-06-16", "session": "早報", "code": "1101", "name": "台泥", "direction": "做多", "score": "53", "entry": "24.85", "stop": "24.35", "target": "25.84", "entryClose": "24.85", "t7": "24.15", "ret": "-2.82", "result": "✗", "exitDate": "2026-06-22", "exitPrice": "24.35", "actualRet": "-2.01", "exitReason": "硬停損2%", "mae": "-2.62", "holdingDays": "3"}, {"date": "2026-06-15", "session": "早報", "code": "2884", "name": "玉山金", "direction": "做多", "score": "33", "entry": "34.35", "stop": "33.66", "target": "35.72", "entryClose": "34.35", "t7": "35.80", "ret": "+4.22", "result": "✓", "exitDate": "2026-06-23", "exitPrice": "35.80", "actualRet": "+4.22", "exitReason": "跳空停損", "mae": "+0.00", "holdingDays": "5"}, {"date": "2026-06-12", "session": "早報", "code": "2379", "name": "瑞昱", "direction": "做多", "score": "70", "entry": "655", "stop": "641.90", "target": "681.20", "entryClose": "655", "t7": "900", "ret": "+37.40", "result": "✗", "exitDate": "2026-06-15", "exitPrice": "639", "actualRet": "-2.44", "exitReason": "跳空停損", "mae": "-5.95", "holdingDays": "1"}, {"date": "2026-06-10", "session": "早報", "code": "2379", "name": "瑞昱", "direction": "做多", "score": "53", "entry": "651", "stop": "637.98", "target": "677.04", "entryClose": "651", "t7": "745", "ret": "+14.44", "result": "✗", "exitDate": "2026-06-11", "exitPrice": "637.98", "actualRet": "-2.00", "exitReason": "硬停損2%", "mae": "-7.53", "holdingDays": "1"}, {"date": "2026-06-10", "session": "早報", "code": "2886", "name": "兆豐金", "direction": "做多", "score": "43", "entry": "43.55", "stop": "42.68", "target": "45.29", "entryClose": "43.55", "t7": "45.10", "ret": "+3.56", "result": "✗", "exitDate": "2026-06-11", "exitPrice": "42.68", "actualRet": "-2.00", "exitReason": "硬停損2%", "mae": "-2.07", "holdingDays": "1"}, {"date": "2026-06-08", "session": "早報", "code": "2615", "name": "萬海", "direction": "做多", "score": "53", "entry": "86.10", "stop": "84.38", "target": "89.54", "entryClose": "86.10", "t7": "83.50", "ret": "-3.02", "result": "✗", "exitDate": "2026-06-09", "exitPrice": "84.38", "actualRet": "-2.00", "exitReason": "硬停損2%", "mae": "-3.37", "holdingDays": "1"}, {"date": "2026-06-08", "session": "早報", "code": "2379", "name": "瑞昱", "direction": "做多", "score": "43", "entry": "643", "stop": "630.14", "target": "668.72", "entryClose": "643", "t7": "634", "ret": "-1.40", "result": "✗", "exitDate": "2026-06-09", "exitPrice": "590", "actualRet": "-8.24", "exitReason": "跳空停損", "mae": "-8.86", "holdingDays": "1"}, {"date": "2026-06-05", "session": "早報", "code": "2412", "name": "中華電", "direction": "做多", "score": "63", "entry": "141.50", "stop": "137.54", "target": "149.43", "entryClose": "141.50", "t7": "145", "ret": "+2.47", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-06-05", "session": "早報", "code": "3045", "name": "台灣大", "direction": "做多", "score": "58", "entry": "116", "stop": "112.95", "target": "122.11", "entryClose": "116", "t7": "119.50", "ret": "+3.02", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-06-05", "session": "早報", "code": "2884", "name": "玉山金", "direction": "做多", "score": "53", "entry": "33.45", "stop": "32.56", "target": "35.24", "entryClose": "33.45", "t7": "34.35", "ret": "+2.69", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-06-03", "session": "早報", "code": "3045", "name": "台灣大", "direction": "做多", "score": "70", "entry": "115.50", "stop": "112.34", "target": "121.82", "entryClose": "115.50", "t7": "118", "ret": "+2.16", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-06-03", "session": "早報", "code": "2330", "name": "台積電", "direction": "做多", "score": "63", "entry": "2380", "stop": "2295.36", "target": "2549.29", "entryClose": "2380", "t7": "2255", "ret": "-5.25", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-06-03", "session": "早報", "code": "2382", "name": "廣達", "direction": "做多", "score": "63", "entry": "400.50", "stop": "373.12", "target": "455.25", "entryClose": "400.50", "t7": "380.50", "ret": "-4.99", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-06-03", "session": "早報", "code": "2303", "name": "聯電", "direction": "做空", "score": "-4", "entry": "141.50", "stop": "158.12", "target": "108.26", "entryClose": "141.50", "t7": "118.50", "ret": "-16.25", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-06-03", "session": "早報", "code": "6669", "name": "緯穎", "direction": "做空", "score": "7", "entry": "5475", "stop": "5987.14", "target": "4450.71", "entryClose": "5475", "t7": "5065", "ret": "-7.49", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-06-02", "session": "早報", "code": "2412", "name": "中華電", "direction": "做多", "score": "95", "entry": "140.50", "stop": "136.80", "target": "147.89", "entryClose": "140.50", "t7": "142", "ret": "+1.07", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-06-02", "session": "早報", "code": "2382", "name": "廣達", "direction": "做多", "score": "73", "entry": "372.50", "stop": "348.61", "target": "420.29", "entryClose": "372.50", "t7": "375", "ret": "+0.67", "result": "✓", "exitDate": "2026-06-03", "exitPrice": "420.29", "actualRet": "+12.83", "exitReason": "目標", "mae": "+0.00", "holdingDays": "1"}, {"date": "2026-06-02", "session": "早報", "code": "2603", "name": "長榮", "direction": "做多", "score": "73", "entry": "224", "stop": "212.75", "target": "246.50", "entryClose": "224", "t7": "222", "ret": "-0.89", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-06-02", "session": "早報", "code": "2884", "name": "玉山金", "direction": "做空", "score": "-1", "entry": "31.45", "stop": "32.16", "target": "30.02", "entryClose": "31.45", "t7": "34.20", "ret": "+8.74", "result": "✗", "exitDate": "2026-06-03", "exitPrice": "32.30", "actualRet": "-2.70", "exitReason": "跳空停損", "mae": "-5.88", "holdingDays": "1"}, {"date": "2026-06-02", "session": "早報", "code": "1101", "name": "台泥", "direction": "做空", "score": "0", "entry": "24.55", "stop": "25.21", "target": "23.22", "entryClose": "24.55", "t7": "23.95", "ret": "-2.44", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-06-02", "session": "早報", "code": "2303", "name": "聯電", "direction": "做空", "score": "8", "entry": "146", "stop": "161.92", "target": "114.16", "entryClose": "146", "t7": "127.50", "ret": "-12.67", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-06-01", "session": "早報", "code": "1303", "name": "南亞", "direction": "做多", "score": "73", "entry": "98.10", "stop": "90.80", "target": "112.69", "entryClose": "98.10", "t7": "97.50", "ret": "-0.61", "result": "✓", "exitDate": "2026-06-02", "exitPrice": "112.69", "actualRet": "+14.87", "exitReason": "目標", "mae": "+0.00", "holdingDays": "1"}, {"date": "2026-06-01", "session": "早報", "code": "2376", "name": "技嘉", "direction": "做多", "score": "73", "entry": "370", "stop": "343.38", "target": "423.25", "entryClose": "370", "t7": "345", "ret": "-6.76", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-06-01", "session": "早報", "code": "2308", "name": "台達電", "direction": "做多", "score": "63", "entry": "2445", "stop": "2261.79", "target": "2811.43", "entryClose": "2445", "t7": "2255", "ret": "-7.77", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-06-01", "session": "早報", "code": "3034", "name": "聯詠", "direction": "做空", "score": "-30", "entry": "477", "stop": "501.70", "target": "427.61", "entryClose": "477", "t7": "473", "ret": "-0.84", "result": "✗", "exitDate": "2026-06-02", "exitPrice": "501.70", "actualRet": "-5.18", "exitReason": "停損", "mae": "-6.92", "holdingDays": "1"}, {"date": "2026-06-01", "session": "早報", "code": "2379", "name": "瑞昱", "direction": "做空", "score": "-11", "entry": "580", "stop": "617.07", "target": "505.86", "entryClose": "580", "t7": "596", "ret": "+2.76", "result": "✗", "exitDate": "2026-06-02", "exitPrice": "617.07", "actualRet": "-6.39", "exitReason": "停損", "mae": "-12.59", "holdingDays": "1"}, {"date": "2026-06-01", "session": "早報", "code": "1216", "name": "統一", "direction": "做空", "score": "-6", "entry": "71.80", "stop": "74.17", "target": "67.06", "entryClose": "71.80", "t7": "72.90", "ret": "+1.53", "result": "✗", "exitDate": "2026-06-02", "exitPrice": "74.17", "actualRet": "-3.30", "exitReason": "停損", "mae": "-3.48", "holdingDays": "1"}, {"date": "2026-05-29", "session": "早報", "code": "2891", "name": "中信金", "direction": "做多", "score": "63", "entry": "59.30", "stop": "56.85", "target": "64.21", "entryClose": "59.30", "t7": "66.60", "ret": "+12.31", "result": "✓", "exitDate": "2026-06-02", "exitPrice": "64.21", "actualRet": "+8.28", "exitReason": "目標", "mae": "+0.00", "holdingDays": "2"}, {"date": "2026-05-29", "session": "早報", "code": "2376", "name": "技嘉", "direction": "做多", "score": "63", "entry": "337.50", "stop": "312.75", "target": "387", "entryClose": "337.50", "t7": "369", "ret": "+9.33", "result": "✓", "exitDate": "2026-06-01", "exitPrice": "387", "actualRet": "+14.67", "exitReason": "目標", "mae": "+0.00", "holdingDays": "1"}, {"date": "2026-05-29", "session": "早報", "code": "2317", "name": "鴻海", "direction": "做多", "score": "53", "entry": "263", "stop": "248.70", "target": "291.61", "entryClose": "263", "t7": "284.50", "ret": "+8.17", "result": "✓", "exitDate": "2026-06-01", "exitPrice": "291.61", "actualRet": "+10.88", "exitReason": "目標", "mae": "+0.00", "holdingDays": "1"}, {"date": "2026-05-29", "session": "早報", "code": "6669", "name": "緯穎", "direction": "做空", "score": "-46", "entry": "4950", "stop": "5446.61", "target": "3956.79", "entryClose": "4950", "t7": "5660", "ret": "+14.34", "result": "✗", "exitDate": "2026-06-01", "exitPrice": "5715", "actualRet": "-15.45", "exitReason": "跳空停損", "mae": "-17.07", "holdingDays": "1"}, {"date": "2026-05-29", "session": "早報", "code": "2412", "name": "中華電", "direction": "做空", "score": "-43", "entry": "136.50", "stop": "139.66", "target": "130.18", "entryClose": "136.50", "t7": "141", "ret": "+3.30", "result": "✗", "exitDate": "2026-06-01", "exitPrice": "139.66", "actualRet": "-2.32", "exitReason": "停損", "mae": "-4.03", "holdingDays": "1"}, {"date": "2026-05-29", "session": "早報", "code": "3034", "name": "聯詠", "direction": "做空", "score": "-37", "entry": "478.50", "stop": "503.89", "target": "427.71", "entryClose": "478.50", "t7": "492", "ret": "+2.82", "result": "✗", "exitDate": "2026-06-02", "exitPrice": "503.89", "actualRet": "-5.31", "exitReason": "停損", "mae": "-6.58", "holdingDays": "2"}, {"date": "2026-05-28", "session": "早報", "code": "1303", "name": "南亞", "direction": "做多", "score": "80", "entry": "95.50", "stop": "88.89", "target": "108.72", "entryClose": "95.50", "t7": "111", "ret": "+16.23", "result": "✓", "exitDate": "2026-06-02", "exitPrice": "108.72", "actualRet": "+13.84", "exitReason": "目標", "mae": "-3.77", "holdingDays": "3"}, {"date": "2026-05-28", "session": "早報", "code": "1503", "name": "士電", "direction": "做多", "score": "73", "entry": "221", "stop": "208.14", "target": "246.71", "entryClose": "221", "t7": "268", "ret": "+21.27", "result": "✓", "exitDate": "2026-06-04", "exitPrice": "246.71", "actualRet": "+11.63", "exitReason": "目標", "mae": "-3.17", "holdingDays": "5"}, {"date": "2026-05-28", "session": "早報", "code": "2308", "name": "台達電", "direction": "做多", "score": "70", "entry": "2520", "stop": "2348.04", "target": "2863.93", "entryClose": "2520", "t7": "2425", "ret": "-3.77", "result": "✗", "exitDate": "2026-06-02", "exitPrice": "2348.04", "actualRet": "-6.82", "exitReason": "停損", "mae": "-7.54", "holdingDays": "3"}, {"date": "2026-05-28", "session": "早報", "code": "3045", "name": "台灣大", "direction": "做空", "score": "-53", "entry": "110", "stop": "112.84", "target": "104.32", "entryClose": "110", "t7": "116", "ret": "+5.45", "result": "✗", "exitDate": "2026-06-01", "exitPrice": "112.84", "actualRet": "-2.58", "exitReason": "停損", "mae": "-4.55", "holdingDays": "2"}, {"date": "2026-05-28", "session": "早報", "code": "2884", "name": "玉山金", "direction": "做空", "score": "-38", "entry": "31.15", "stop": "31.85", "target": "29.75", "entryClose": "31.15", "t7": "33.45", "ret": "+7.38", "result": "✗", "exitDate": "2026-06-02", "exitPrice": "31.85", "actualRet": "-2.25", "exitReason": "停損", "mae": "-3.37", "holdingDays": "3"}, {"date": "2026-05-28", "session": "早報", "code": "6669", "name": "緯穎", "direction": "做空", "score": "-33", "entry": "5075", "stop": "5572.68", "target": "4079.64", "entryClose": "5075", "t7": "5570", "ret": "+9.75", "result": "✗", "exitDate": "2026-06-01", "exitPrice": "5572.68", "actualRet": "-9.81", "exitReason": "停損", "mae": "-14.19", "holdingDays": "2"}, {"date": "2026-05-27", "session": "早報", "code": "2454", "name": "聯發科", "direction": "做多", "score": "73", "entry": "4265", "stop": "3808.57", "target": "5177.86", "entryClose": "4265", "t7": "4545", "ret": "+6.57", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-05-27", "session": "早報", "code": "2317", "name": "鴻海", "direction": "做多", "score": "70", "entry": "259", "stop": "244.86", "target": "287.29", "entryClose": "259", "t7": "309", "ret": "+19.31", "result": "✓", "exitDate": "2026-05-29", "exitPrice": "287.29", "actualRet": "+10.92", "exitReason": "目標", "mae": "+0.00", "holdingDays": "2"}, {"date": "2026-05-27", "session": "早報", "code": "2376", "name": "技嘉", "direction": "做多", "score": "70", "entry": "336", "stop": "310.61", "target": "386.79", "entryClose": "336", "t7": "399", "ret": "+18.75", "result": "✓", "exitDate": "2026-06-01", "exitPrice": "386.79", "actualRet": "+15.12", "exitReason": "目標", "mae": "-1.49", "holdingDays": "3"}, {"date": "2026-05-27", "session": "早報", "code": "1101", "name": "台泥", "direction": "做空", "score": "-53", "entry": "23.95", "stop": "24.72", "target": "22.42", "entryClose": "23.95", "t7": "24.85", "ret": "+3.76", "result": "✗", "exitDate": "2026-06-02", "exitPrice": "24.72", "actualRet": "-3.22", "exitReason": "停損", "mae": "-3.55", "holdingDays": "4"}, {"date": "2026-05-27", "session": "早報", "code": "2886", "name": "兆豐金", "direction": "做空", "score": "-53", "entry": "39.40", "stop": "40.41", "target": "37.38", "entryClose": "39.40", "t7": "41.65", "ret": "+5.71", "result": "✗", "exitDate": "2026-05-29", "exitPrice": "40.41", "actualRet": "-2.56", "exitReason": "停損", "mae": "-3.68", "holdingDays": "2"}, {"date": "2026-05-27", "session": "早報", "code": "3045", "name": "台灣大", "direction": "做空", "score": "-36", "entry": "110.50", "stop": "113.23", "target": "105.04", "entryClose": "110.50", "t7": "116", "ret": "+4.98", "result": "✗", "exitDate": "2026-06-01", "exitPrice": "113.23", "actualRet": "-2.47", "exitReason": "停損", "mae": "-4.07", "holdingDays": "3"}, {"date": "2026-05-26", "session": "早報", "code": "3711", "name": "日月光投控", "direction": "做多", "score": "70", "entry": "617", "stop": "565.41", "target": "720.18", "entryClose": "617", "t7": "590", "ret": "-4.38", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-05-26", "session": "早報", "code": "2379", "name": "瑞昱", "direction": "做多", "score": "70", "entry": "583", "stop": "544.32", "target": "660.36", "entryClose": "583", "t7": "653", "ret": "+12.01", "result": "✓", "exitDate": "2026-06-03", "exitPrice": "660.36", "actualRet": "+13.27", "exitReason": "目標", "mae": "-0.51", "holdingDays": "6"}, {"date": "2026-05-26", "session": "早報", "code": "2882", "name": "國泰金", "direction": "做多", "score": "63", "entry": "81.50", "stop": "78.47", "target": "87.56", "entryClose": "81.50", "t7": "89.20", "ret": "+9.45", "result": "✓", "exitDate": "2026-06-01", "exitPrice": "87.56", "actualRet": "+7.44", "exitReason": "目標", "mae": "+0.00", "holdingDays": "4"}, {"date": "2026-05-26", "session": "早報", "code": "2884", "name": "玉山金", "direction": "做空", "score": "-53", "entry": "30.90", "stop": "31.62", "target": "29.45", "entryClose": "30.90", "t7": "32.20", "ret": "+4.21", "result": "✗", "exitDate": "2026-06-02", "exitPrice": "31.62", "actualRet": "-2.33", "exitReason": "停損", "mae": "-4.21", "holdingDays": "5"}, {"date": "2026-05-26", "session": "早報", "code": "2412", "name": "中華電", "direction": "做空", "score": "-33", "entry": "136.50", "stop": "139.45", "target": "130.61", "entryClose": "136.50", "t7": "142", "ret": "+4.03", "result": "✗", "exitDate": "2026-06-01", "exitPrice": "139.45", "actualRet": "-2.16", "exitReason": "停損", "mae": "-4.03", "holdingDays": "4"}, {"date": "2026-05-26", "session": "早報", "code": "1216", "name": "統一", "direction": "做空", "score": "-33", "entry": "71.20", "stop": "73.79", "target": "66.01", "entryClose": "71.20", "t7": "74.20", "ret": "+4.21", "result": "✗", "exitDate": "2026-06-01", "exitPrice": "73.79", "actualRet": "-3.64", "exitReason": "停損", "mae": "-4.35", "holdingDays": "4"}, {"date": "2026-05-25", "session": "早報", "code": "2603", "name": "長榮", "direction": "做多", "score": "80", "entry": "219", "stop": "209.84", "target": "237.32", "entryClose": "219", "t7": "224", "ret": "+2.28", "result": "✗", "exitDate": "2026-05-27", "exitPrice": "209.84", "actualRet": "-4.18", "exitReason": "停損", "mae": "-4.57", "holdingDays": "2"}, {"date": "2026-05-25", "session": "早報", "code": "2357", "name": "華碩", "direction": "做多", "score": "77", "entry": "682", "stop": "642.14", "target": "761.71", "entryClose": "682", "t7": "837", "ret": "+22.73", "result": "✓", "exitDate": "2026-06-01", "exitPrice": "761.71", "actualRet": "+11.69", "exitReason": "目標", "mae": "+0.00", "holdingDays": "5"}, {"date": "2026-05-25", "session": "早報", "code": "2882", "name": "國泰金", "direction": "做多", "score": "70", "entry": "79.70", "stop": "76.76", "target": "85.57", "entryClose": "79.70", "t7": "88.20", "ret": "+10.66", "result": "✓", "exitDate": "2026-05-27", "exitPrice": "85.57", "actualRet": "+7.37", "exitReason": "目標", "mae": "+0.00", "holdingDays": "2"}, {"date": "2026-05-25", "session": "早報", "code": "1101", "name": "台泥", "direction": "做空", "score": "-53", "entry": "24.10", "stop": "24.93", "target": "22.44", "entryClose": "24.10", "t7": "24.55", "ret": "+1.87", "result": "✗", "exitDate": "2026-06-03", "exitPrice": "24.93", "actualRet": "-3.44", "exitReason": "停損", "mae": "-4.56", "holdingDays": "7"}, {"date": "2026-05-25", "session": "早報", "code": "2002", "name": "中鋼", "direction": "做空", "score": "-53", "entry": "18.15", "stop": "18.54", "target": "17.38", "entryClose": "18.15", "t7": "19.10", "ret": "+5.23", "result": "✗", "exitDate": "2026-05-26", "exitPrice": "21", "actualRet": "-15.70", "exitReason": "跳空停損", "mae": "-15.70", "holdingDays": "1"}, {"date": "2026-05-25", "session": "早報", "code": "2884", "name": "玉山金", "direction": "做空", "score": "-53", "entry": "31.30", "stop": "32.02", "target": "29.85", "entryClose": "31.30", "t7": "31.45", "ret": "+0.48", "result": "✗", "exitDate": "2026-06-02", "exitPrice": "32.02", "actualRet": "-2.30", "exitReason": "停損", "mae": "-2.88", "holdingDays": "6"}, {"date": "2026-05-22", "session": "早報", "code": "2886", "name": "兆豐金", "direction": "做多", "score": "53", "entry": "40.20", "stop": "39.15", "target": "42.30", "entryClose": "40.20", "t7": "40", "ret": "-0.50", "result": "✓", "exitDate": "2026-06-02", "exitPrice": "42.30", "actualRet": "+5.22", "exitReason": "目標", "mae": "-1.99", "holdingDays": "7"}, {"date": "2026-05-22", "session": "早報", "code": "2615", "name": "萬海", "direction": "做多", "score": "53", "entry": "81.20", "stop": "77.54", "target": "88.53", "entryClose": "81.20", "t7": "82", "ret": "+0.99", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-05-22", "session": "早報", "code": "2609", "name": "陽明", "direction": "做多", "score": "46", "entry": "51.10", "stop": "49.32", "target": "54.67", "entryClose": "51.10", "t7": "52.70", "ret": "+3.13", "result": "✓", "exitDate": "2026-06-01", "exitPrice": "54.67", "actualRet": "+6.99", "exitReason": "目標", "mae": "-0.20", "holdingDays": "6"}, {"date": "2026-05-22", "session": "早報", "code": "2884", "name": "玉山金", "direction": "做空", "score": "-63", "entry": "31.55", "stop": "32.31", "target": "30.03", "entryClose": "31.55", "t7": "30.95", "ret": "-1.90", "result": "✗", "exitDate": "2026-06-03", "exitPrice": "32.31", "actualRet": "-2.41", "exitReason": "停損", "mae": "-5.55", "holdingDays": "8"}, {"date": "2026-05-22", "session": "早報", "code": "1503", "name": "士電", "direction": "做空", "score": "-26", "entry": "188.50", "stop": "200.34", "target": "164.82", "entryClose": "188.50", "t7": "219", "ret": "+16.18", "result": "✗", "exitDate": "2026-05-25", "exitPrice": "202", "actualRet": "-7.16", "exitReason": "跳空停損", "mae": "-8.75", "holdingDays": "1"}, {"date": "2026-05-22", "session": "早報", "code": "1101", "name": "台泥", "direction": "做空", "score": "-26", "entry": "24.20", "stop": "25.06", "target": "22.49", "entryClose": "24.20", "t7": "24.40", "ret": "+0.83", "result": "✗", "exitDate": "2026-06-03", "exitPrice": "25.06", "actualRet": "-3.55", "exitReason": "停損", "mae": "-4.13", "holdingDays": "8"}, {"date": "2026-05-21", "session": "早報", "code": "2891", "name": "中信金", "direction": "做多", "score": "80", "entry": "57.80", "stop": "55.51", "target": "62.39", "entryClose": "57.80", "t7": "59.30", "ret": "+2.60", "result": "✓", "exitDate": "2026-06-01", "exitPrice": "62.39", "actualRet": "+7.94", "exitReason": "目標", "mae": "-1.38", "holdingDays": "7"}, {"date": "2026-05-21", "session": "早報", "code": "2615", "name": "萬海", "direction": "做多", "score": "63", "entry": "81.10", "stop": "77.52", "target": "88.26", "entryClose": "81.10", "t7": "80.70", "ret": "-0.49", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-05-21", "session": "早報", "code": "2886", "name": "兆豐金", "direction": "做多", "score": "53", "entry": "40.30", "stop": "39.19", "target": "42.52", "entryClose": "40.30", "t7": "39.80", "ret": "-1.24", "result": "✓", "exitDate": "2026-06-04", "exitPrice": "42.52", "actualRet": "+5.51", "exitReason": "目標", "mae": "-2.23", "holdingDays": "10"}, {"date": "2026-05-21", "session": "早報", "code": "2884", "name": "玉山金", "direction": "做空", "score": "-70", "entry": "31.70", "stop": "32.47", "target": "30.16", "entryClose": "31.70", "t7": "30.70", "ret": "-3.15", "result": "✗", "exitDate": "2026-06-03", "exitPrice": "32.47", "actualRet": "-2.43", "exitReason": "停損", "mae": "-5.05", "holdingDays": "9"}, {"date": "2026-05-21", "session": "早報", "code": "1101", "name": "台泥", "direction": "做空", "score": "-63", "entry": "24.15", "stop": "25", "target": "22.46", "entryClose": "24.15", "t7": "23.65", "ret": "-2.07", "result": "✗", "exitDate": "2026-06-03", "exitPrice": "25", "actualRet": "-3.52", "exitReason": "停損", "mae": "-4.35", "holdingDays": "9"}, {"date": "2026-05-21", "session": "早報", "code": "1503", "name": "士電", "direction": "做空", "score": "-43", "entry": "181", "stop": "192.79", "target": "157.43", "entryClose": "181", "t7": "216", "ret": "+19.34", "result": "✗", "exitDate": "2026-05-22", "exitPrice": "192.79", "actualRet": "-6.51", "exitReason": "停損", "mae": "-9.39", "holdingDays": "1"}, {"date": "2026-05-20", "session": "早報", "code": "2886", "name": "兆豐金", "direction": "做多", "score": "87", "entry": "40.65", "stop": "39.57", "target": "42.81", "entryClose": "40.65", "t7": "39.45", "ret": "-2.95", "result": "✗", "exitDate": "2026-05-25", "exitPrice": "39.57", "actualRet": "-2.66", "exitReason": "停損", "mae": "-2.83", "holdingDays": "3"}, {"date": "2026-05-20", "session": "早報", "code": "2615", "name": "萬海", "direction": "做多", "score": "77", "entry": "80.40", "stop": "77.03", "target": "87.15", "entryClose": "80.40", "t7": "81.80", "ret": "+1.74", "result": "", "exitDate": "2026-06-07", "exitPrice": "", "actualRet": "", "exitReason": "舊邏輯停止追蹤", "mae": "", "holdingDays": ""}, {"date": "2026-05-20", "session": "早報", "code": "2891", "name": "中信金", "direction": "做多", "score": "53", "entry": "55.40", "stop": "53.26", "target": "59.69", "entryClose": "55.40", "t7": "59.20", "ret": "+6.86", "result": "✓", "exitDate": "2026-05-27", "exitPrice": "59.69", "actualRet": "+7.74", "exitReason": "目標", "mae": "+0.00", "holdingDays": "5"}, {"date": "2026-05-20", "session": "早報", "code": "2382", "name": "廣達", "direction": "做空", "score": "-63", "entry": "290", "stop": "309.07", "target": "251.86", "entryClose": "290", "t7": "312", "ret": "+7.59", "result": "✗", "exitDate": "2026-05-21", "exitPrice": "309.07", "actualRet": "-6.58", "exitReason": "停損", "mae": "-7.76", "holdingDays": "1"}, {"date": "2026-05-20", "session": "早報", "code": "1503", "name": "士電", "direction": "做空", "score": "-53", "entry": "183.50", "stop": "195.34", "target": "159.82", "entryClose": "183.50", "t7": "221", "ret": "+20.44", "result": "✗", "exitDate": "2026-05-22", "exitPrice": "195.34", "actualRet": "-6.45", "exitReason": "停損", "mae": "-7.90", "holdingDays": "2"}, {"date": "2026-05-20", "session": "早報", "code": "2603", "name": "長榮", "direction": "做空", "score": "-53", "entry": "197", "stop": "204.23", "target": "182.54", "entryClose": "197", "t7": "211.50", "ret": "+7.36", "result": "✗", "exitDate": "2026-05-21", "exitPrice": "212", "actualRet": "-7.61", "exitReason": "跳空停損", "mae": "-8.88", "holdingDays": "1"}, {"date": "2026-05-19", "session": "早報", "code": "3045", "name": "台灣大", "direction": "做多", "score": "53", "entry": "114", "stop": "112.02", "target": "117.96", "entryClose": "114", "t7": "110.50", "ret": "-3.07", "result": "✗", "exitDate": "2026-05-22", "exitPrice": "112.02", "actualRet": "-1.74", "exitReason": "停損", "mae": "-2.19", "holdingDays": "3"}, {"date": "2026-05-19", "session": "早報", "code": "2376", "name": "技嘉", "direction": "做多", "score": "43", "entry": "330.50", "stop": "308.48", "target": "374.54", "entryClose": "330.50", "t7": "336", "ret": "+1.66", "result": "✗", "exitDate": "2026-05-20", "exitPrice": "308.48", "actualRet": "-6.66", "exitReason": "停損", "mae": "-9.23", "holdingDays": "1"}, {"date": "2026-05-19", "session": "早報", "code": "2884", "name": "玉山金", "direction": "做空", "score": "-70", "entry": "31.70", "stop": "32.51", "target": "30.07", "entryClose": "31.70", "t7": "31.15", "ret": "-1.74", "result": "✗", "exitDate": "2026-06-03", "exitPrice": "32.51", "actualRet": "-2.56", "exitReason": "停損", "mae": "-5.05", "holdingDays": "11"}, {"date": "2026-05-19", "session": "早報", "code": "1101", "name": "台泥", "direction": "做空", "score": "-63", "entry": "24.05", "stop": "24.91", "target": "22.34", "entryClose": "24.05", "t7": "23.95", "ret": "-0.42", "result": "✗", "exitDate": "2026-06-03", "exitPrice": "24.91", "actualRet": "-3.58", "exitReason": "停損", "mae": "-4.78", "holdingDays": "11"}, {"date": "2026-05-19", "session": "早報", "code": "2382", "name": "廣達", "direction": "做空", "score": "-63", "entry": "300", "stop": "319.07", "target": "261.86", "entryClose": "300", "t7": "316.50", "ret": "+5.50", "result": "✗", "exitDate": "2026-05-25", "exitPrice": "319.07", "actualRet": "-6.36", "exitReason": "停損", "mae": "-8.33", "holdingDays": "4"}, {"date": "2026-05-18", "session": "早報", "code": "3045", "name": "台灣大", "direction": "做多", "score": "53", "entry": "114.50", "stop": "112.57", "target": "118.36", "entryClose": "114.50", "t7": "111.50", "ret": "-2.62", "result": "✗", "exitDate": "2026-05-22", "exitPrice": "112.57", "actualRet": "-1.69", "exitReason": "停損", "mae": "-2.62", "holdingDays": "4"}, {"date": "2026-05-18", "session": "早報", "code": "2356", "name": "英業達", "direction": "做多", "score": "43", "entry": "52.20", "stop": "48.93", "target": "58.74", "entryClose": "52.20", "t7": "65.40", "ret": "+25.29", "result": "✓", "exitDate": "2026-05-22", "exitPrice": "58.74", "actualRet": "+12.53", "exitReason": "目標", "mae": "-3.45", "holdingDays": "4"}, {"date": "2026-05-18", "session": "早報", "code": "1216", "name": "統一", "direction": "做多", "score": "43", "entry": "75.70", "stop": "73.50", "target": "80.09", "entryClose": "75.70", "t7": "71.20", "ret": "-5.94", "result": "✗", "exitDate": "2026-05-20", "exitPrice": "73.50", "actualRet": "-2.91", "exitReason": "停損", "mae": "-3.96", "holdingDays": "2"}, {"date": "2026-05-18", "session": "早報", "code": "2609", "name": "陽明", "direction": "做空", "score": "-70", "entry": "48.05", "stop": "49.51", "target": "45.12", "entryClose": "48.05", "t7": "51.80", "ret": "+7.80", "result": "✗", "exitDate": "2026-05-19", "exitPrice": "49.51", "actualRet": "-3.04", "exitReason": "停損", "mae": "-5.10", "holdingDays": "1"}, {"date": "2026-05-18", "session": "早報", "code": "2379", "name": "瑞昱", "direction": "做空", "score": "-70", "entry": "536", "stop": "573.18", "target": "461.64", "entryClose": "536", "t7": "583", "ret": "+8.77", "result": "✗", "exitDate": "2026-05-19", "exitPrice": "573.18", "actualRet": "-6.94", "exitReason": "停損", "mae": "-8.77", "holdingDays": "1"}, {"date": "2026-05-18", "session": "早報", "code": "2603", "name": "長榮", "direction": "做空", "score": "-63", "entry": "200.50", "stop": "207.46", "target": "186.57", "entryClose": "200.50", "t7": "214", "ret": "+6.73", "result": "✗", "exitDate": "2026-05-20", "exitPrice": "207.46", "actualRet": "-3.47", "exitReason": "停損", "mae": "-7.98", "holdingDays": "2"}, {"date": "2026-05-18", "session": "早報", "code": "2412", "name": "中華電", "direction": "做多", "score": "63", "entry": "138", "stop": "135.75", "target": "142.50", "entryClose": "138", "t7": "136.50", "ret": "-1.09", "result": "✓", "exitDate": "2026-05-19", "exitPrice": "142.50", "actualRet": "+3.26", "exitReason": "目標", "mae": "-0.72", "holdingDays": "1"}, {"date": "2026-05-18", "session": "早報", "code": "3045", "name": "台灣大", "direction": "做多", "score": "53", "entry": "114.50", "stop": "112.57", "target": "118.36", "entryClose": "114.50", "t7": "111.50", "ret": "-2.62", "result": "✗", "exitDate": "2026-05-22", "exitPrice": "112.57", "actualRet": "-1.69", "exitReason": "停損", "mae": "-2.62", "holdingDays": "4"}, {"date": "2026-05-18", "session": "早報", "code": "2356", "name": "英業達", "direction": "做多", "score": "43", "entry": "52.20", "stop": "48.93", "target": "58.74", "entryClose": "52.20", "t7": "65.40", "ret": "+25.29", "result": "✓", "exitDate": "2026-05-22", "exitPrice": "58.74", "actualRet": "+12.53", "exitReason": "目標", "mae": "-3.45", "holdingDays": "4"}, {"date": "2026-05-18", "session": "早報", "code": "2609", "name": "陽明", "direction": "做空", "score": "-70", "entry": "48.05", "stop": "49.51", "target": "45.12", "entryClose": "48.05", "t7": "51.80", "ret": "+7.80", "result": "✗", "exitDate": "2026-05-19", "exitPrice": "49.51", "actualRet": "-3.04", "exitReason": "停損", "mae": "-5.10", "holdingDays": "1"}, {"date": "2026-05-18", "session": "早報", "code": "2379", "name": "瑞昱", "direction": "做空", "score": "-70", "entry": "536", "stop": "573.18", "target": "461.64", "entryClose": "536", "t7": "583", "ret": "+8.77", "result": "✗", "exitDate": "2026-05-19", "exitPrice": "573.18", "actualRet": "-6.94", "exitReason": "停損", "mae": "-8.77", "holdingDays": "1"}, {"date": "2026-05-18", "session": "早報", "code": "2382", "name": "廣達", "direction": "做空", "score": "-63", "entry": "306", "stop": "324.96", "target": "268.07", "entryClose": "306", "t7": "316.50", "ret": "+3.43", "result": "✗", "exitDate": "2026-05-25", "exitPrice": "324.96", "actualRet": "-6.20", "exitReason": "停損", "mae": "-6.21", "holdingDays": "5"}, {"date": "2026-05-15", "session": "早報", "code": "2379", "name": "瑞昱", "direction": "做多", "score": "77", "entry": "574", "stop": "540.36", "target": "641.29", "entryClose": "574", "t7": "578", "ret": "+0.70", "result": "✗", "exitDate": "2026-05-18", "exitPrice": "540.36", "actualRet": "-5.86", "exitReason": "停損", "mae": "-6.62", "holdingDays": "1"}, {"date": "2026-05-15", "session": "早報", "code": "2412", "name": "中華電", "direction": "做多", "score": "65", "entry": "137.50", "stop": "135.25", "target": "142", "entryClose": "137.50", "t7": "137", "ret": "-0.36", "result": "✓", "exitDate": "2026-05-19", "exitPrice": "142", "actualRet": "+3.27", "exitReason": "目標", "mae": "-0.36", "holdingDays": "2"}, {"date": "2026-05-15", "session": "早報", "code": "3045", "name": "台灣大", "direction": "做多", "score": "63", "entry": "115", "stop": "112.96", "target": "119.07", "entryClose": "115", "t7": "112", "ret": "-2.61", "result": "✗", "exitDate": "2026-05-22", "exitPrice": "112.96", "actualRet": "-1.77", "exitReason": "停損", "mae": "-3.04", "holdingDays": "5"}, {"date": "2026-05-15", "session": "早報", "code": "2356", "name": "英業達", "direction": "做多", "score": "43", "entry": "53.20", "stop": "50.09", "target": "59.41", "entryClose": "53.20", "t7": "59.50", "ret": "+11.84", "result": "✓", "exitDate": "2026-05-22", "exitPrice": "59.41", "actualRet": "+11.67", "exitReason": "目標", "mae": "-5.83", "holdingDays": "5"}, {"date": "2026-05-15", "session": "早報", "code": "1216", "name": "統一", "direction": "做多", "score": "43", "entry": "74.80", "stop": "72.73", "target": "78.94", "entryClose": "74.80", "t7": "71.50", "ret": "-4.41", "result": "✗", "exitDate": "2026-05-20", "exitPrice": "72.73", "actualRet": "-2.77", "exitReason": "停損", "mae": "-2.81", "holdingDays": "3"}, {"date": "2026-05-15", "session": "早報", "code": "2379", "name": "瑞昱", "direction": "做多", "score": "77", "entry": "574", "stop": "540.36", "target": "641.29", "entryClose": "574", "t7": "578", "ret": "+0.70", "result": "✗", "exitDate": "2026-05-18", "exitPrice": "540.36", "actualRet": "-5.86", "exitReason": "停損", "mae": "-6.62", "holdingDays": "1"}, {"date": "2026-05-15", "session": "早報", "code": "2412", "name": "中華電", "direction": "做多", "score": "65", "entry": "137.50", "stop": "135.25", "target": "142", "entryClose": "137.50", "t7": "137", "ret": "-0.36", "result": "✓", "exitDate": "2026-05-19", "exitPrice": "142", "actualRet": "+3.27", "exitReason": "目標", "mae": "-0.36", "holdingDays": "2"}, {"date": "2026-05-15", "session": "早報", "code": "3045", "name": "台灣大", "direction": "做多", "score": "63", "entry": "115", "stop": "112.96", "target": "119.07", "entryClose": "115", "t7": "112", "ret": "-2.61", "result": "✗", "exitDate": "2026-05-22", "exitPrice": "112.96", "actualRet": "-1.77", "exitReason": "停損", "mae": "-3.04", "holdingDays": "5"}, {"date": "2026-05-15", "session": "早報", "code": "2356", "name": "英業達", "direction": "做多", "score": "43", "entry": "53.20", "stop": "50.09", "target": "59.41", "entryClose": "53.20", "t7": "59.50", "ret": "+11.84", "result": "✓", "exitDate": "2026-05-22", "exitPrice": "59.41", "actualRet": "+11.67", "exitReason": "目標", "mae": "-5.83", "holdingDays": "5"}, {"date": "2026-05-15", "session": "早報", "code": "1216", "name": "統一", "direction": "做多", "score": "43", "entry": "74.80", "stop": "72.73", "target": "78.94", "entryClose": "74.80", "t7": "71.50", "ret": "-4.41", "result": "✗", "exitDate": "2026-05-20", "exitPrice": "72.73", "actualRet": "-2.77", "exitReason": "停損", "mae": "-2.81", "holdingDays": "3"}, {"date": "2026-05-14", "session": "早報", "code": "2356", "name": "英業達", "direction": "做多", "score": "73", "entry": "52.80", "stop": "49.59", "target": "59.22", "entryClose": "52.80", "t7": "54.10", "ret": "+2.46", "result": "✓", "exitDate": "2026-05-22", "exitPrice": "59.22", "actualRet": "+12.16", "exitReason": "目標", "mae": "-5.11", "holdingDays": "6"}, {"date": "2026-05-14", "session": "早報", "code": "1216", "name": "統一", "direction": "做多", "score": "63", "entry": "75.20", "stop": "73.12", "target": "79.36", "entryClose": "75.20", "t7": "73.10", "ret": "-2.79", "result": "✗", "exitDate": "2026-05-20", "exitPrice": "73.12", "actualRet": "-2.77", "exitReason": "停損", "mae": "-3.32", "holdingDays": "4"}, {"date": "2026-05-14", "session": "早報", "code": "2357", "name": "華碩", "direction": "做多", "score": "43", "entry": "663", "stop": "630.21", "target": "728.57", "entryClose": "663", "t7": "656", "ret": "-1.06", "result": "✗", "exitDate": "2026-05-18", "exitPrice": "630.21", "actualRet": "-4.95", "exitReason": "停損", "mae": "-6.18", "holdingDays": "2"}, {"date": "2026-05-14", "session": "早報", "code": "2303", "name": "聯電", "direction": "做多", "score": "33", "entry": "98.40", "stop": "88.30", "target": "118.61", "entryClose": "98.40", "t7": "116", "ret": "+17.89", "result": "✓", "exitDate": "2026-05-19", "exitPrice": "118.61", "actualRet": "+20.54", "exitReason": "目標", "mae": "+0.00", "holdingDays": "3"}, {"date": "2026-05-14", "session": "早報", "code": "3034", "name": "聯詠", "direction": "做多", "score": "33", "entry": "486.50", "stop": "459.98", "target": "539.54", "entryClose": "486.50", "t7": "484.50", "ret": "-0.41", "result": "✗", "exitDate": "2026-05-18", "exitPrice": "459.98", "actualRet": "-5.45", "exitReason": "停損", "mae": "-5.76", "holdingDays": "2"}, {"date": "2026-05-13", "session": "早報", "code": "2376", "name": "技嘉", "direction": "做多", "score": "53", "entry": "321", "stop": "302.20", "target": "358.61", "entryClose": "321", "t7": "302", "ret": "-5.92", "result": "✗", "exitDate": "2026-05-20", "exitPrice": "302.20", "actualRet": "-5.86", "exitReason": "停損", "mae": "-6.54", "holdingDays": "5"}, {"date": "2026-05-13", "session": "早報", "code": "3711", "name": "日月光投控", "direction": "做多", "score": "43", "entry": "555", "stop": "507.38", "target": "650.25", "entryClose": "555", "t7": "476", "ret": "-14.23", "result": "✗", "exitDate": "2026-05-18", "exitPrice": "507.38", "actualRet": "-8.58", "exitReason": "停損", "mae": "-9.91", "holdingDays": "3"}, {"date": "2026-05-13", "session": "早報", "code": "1216", "name": "統一", "direction": "做多", "score": "43", "entry": "73.10", "stop": "71.22", "target": "76.85", "entryClose": "73.10", "t7": "73.40", "ret": "+0.41", "result": "✗", "exitDate": "2026-05-25", "exitPrice": "71.22", "actualRet": "-2.57", "exitReason": "停損", "mae": "-2.60", "holdingDays": "8"}, {"date": "2026-05-13", "session": "早報", "code": "2357", "name": "華碩", "direction": "做多", "score": "33", "entry": "673", "stop": "641.39", "target": "736.21", "entryClose": "673", "t7": "640", "ret": "-4.90", "result": "✗", "exitDate": "2026-05-15", "exitPrice": "641.39", "actualRet": "-4.70", "exitReason": "停損", "mae": "-5.20", "holdingDays": "2"}, {"date": "2026-05-13", "session": "早報", "code": "1503", "name": "士電", "direction": "做多", "score": "33", "entry": "204.50", "stop": "192.93", "target": "227.64", "entryClose": "204.50", "t7": "181", "ret": "-11.49", "result": "✗", "exitDate": "2026-05-15", "exitPrice": "192.93", "actualRet": "-5.66", "exitReason": "停損", "mae": "-7.33", "holdingDays": "2"}, {"date": "2026-05-11", "session": "早報", "code": "2382", "name": "廣達", "direction": "做多", "score": "27", "entry": "340.50", "stop": "322.61", "target": "376.29", "entryClose": "340.50", "t7": "300", "ret": "-11.89", "result": "✗", "exitDate": "2026-05-15", "exitPrice": "322.61", "actualRet": "-5.25", "exitReason": "停損", "mae": "-10.43", "holdingDays": "4"}, {"date": "2026-05-11", "session": "早報", "code": "2330", "name": "台積電", "direction": "做多", "score": "-3", "entry": "2290", "stop": "2181.25", "target": "2507.50", "entryClose": "2290", "t7": "2240", "ret": "-2.18", "result": "✓", "exitDate": "2026-05-29", "exitPrice": "2355", "actualRet": "+2.84", "exitReason": "到期", "mae": "-4.59", "holdingDays": "14"}, {"date": "2026-05-11", "session": "早報", "code": "2330", "name": "台積電", "direction": "做空", "score": "-3", "entry": "2290", "stop": "2398.75", "target": "2072.50", "entryClose": "2290", "t7": "2240", "ret": "-2.18", "result": "✗", "exitDate": "2026-05-29", "exitPrice": "2355", "actualRet": "-2.84", "exitReason": "到期", "mae": "-3.71", "holdingDays": "14"}, {"date": "2026-05-11", "session": "早報", "code": "2382", "name": "廣達", "direction": "做空", "score": "27", "entry": "340.50", "stop": "358.39", "target": "304.71", "entryClose": "340.50", "t7": "300", "ret": "-11.89", "result": "✓", "exitDate": "2026-05-18", "exitPrice": "304.71", "actualRet": "+10.51", "exitReason": "目標", "mae": "-3.23", "holdingDays": "5"}];
+const META = {"defaultStart": "2026-05-25", "defaultEnd": "2026-06-24", "totalCount": 127};
+
+const fmtPct = (v) => (v == null || isNaN(v)) ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
+const parseFloatOrNull = (s) => { const v = parseFloat(s); return isNaN(v) ? null : v; };
+
+function readFilters() {
+  return {
+    start: document.getElementById("dateStart").value,
+    end: document.getElementById("dateEnd").value,
+    direction: document.getElementById("dirSelect").value,
+    result: document.getElementById("resultSelect").value,
+    exitReason: document.getElementById("exitReasonSelect").value,
+    scoreMin: parseFloatOrNull(document.getElementById("scoreMin").value),
+    scoreMax: parseFloatOrNull(document.getElementById("scoreMax").value),
+    search: document.getElementById("searchBox").value.trim().toLowerCase(),
+  };
+}
+
+let sortKey = "date";
+let sortDir = -1; // -1 desc, 1 asc
+
+function applyFilter() {
+  const f = readFilters();
+  return RECORDS.filter(r => {
+    const d = r.date;
+    if (f.start && d < f.start) return false;
+    if (f.end && d > f.end) return false;
+    if (f.direction && r.direction !== f.direction) return false;
+
+    if (f.result) {
+      const settled = r.result === "✓" || r.result === "✗";
+      if (f.result === "pending" && settled) return false;
+      if (f.result === "win" && r.result !== "✓") return false;
+      if (f.result === "loss" && r.result !== "✗") return false;
+    }
+
+    if (f.exitReason && r.exitReason !== f.exitReason) return false;
+
+    if (f.scoreMin != null || f.scoreMax != null) {
+      const s = parseFloatOrNull(r.score);
+      if (s == null) return false;
+      if (f.scoreMin != null && s < f.scoreMin) return false;
+      if (f.scoreMax != null && s > f.scoreMax) return false;
+    }
+
+    if (f.search) {
+      const hay = (r.code + " " + r.name).toLowerCase();
+      if (!hay.includes(f.search)) return false;
+    }
+    return true;
+  });
+}
+
+function sortRows(rows) {
+  const k = sortKey;
+  return rows.slice().sort((a, b) => {
+    let va = a[k], vb = b[k];
+    if (k === "ret" || k === "actualRet" || k === "mae" || k === "entry") {
+      va = parseFloatOrNull(va); vb = parseFloatOrNull(vb);
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      return (va - vb) * sortDir;
+    }
+    return String(va).localeCompare(String(vb)) * sortDir;
+  });
+}
+
+function renderStats(rows) {
+  const settled = rows.filter(r => r.result === "✓" || r.result === "✗");
+  const correct = settled.filter(r => r.result === "✓").length;
+  const total = settled.length;
+  const rets = settled.map(r => parseFloatOrNull(r.actualRet)).filter(v => v != null);
+  const avg = rets.length ? rets.reduce((a, b) => a + b, 0) / rets.length : null;
+  const maes = settled.map(r => parseFloatOrNull(r.mae)).filter(v => v != null);
+  const avgMae = maes.length ? maes.reduce((a, b) => a + b, 0) / maes.length : null;
+  const gapLoss = settled.filter(r => r.exitReason === "跳空停損").length;
+
+  const fmtPctSigned = (v) => v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
+
+  document.getElementById("statSamples").textContent = total + " 筆";
+  document.getElementById("statWinrate").textContent = total ? (correct / total * 100).toFixed(1) + "%" : "—";
+  document.getElementById("statAvgReturn").textContent = fmtPctSigned(avg);
+  document.getElementById("statAvgMae").textContent = fmtPctSigned(avgMae);
+  document.getElementById("statGapLoss").textContent = gapLoss + " 次";
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById("resultBody");
+  const empty = document.getElementById("emptyMsg");
+  tbody.innerHTML = "";
+  if (rows.length === 0) {
+    empty.style.display = "block";
+    return;
+  }
+  empty.style.display = "none";
+  const frag = document.createDocumentFragment();
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    const dirCls = r.direction === "做多" ? "dir-long" : (r.direction === "做空" ? "dir-short" : "");
+    const ret = parseFloatOrNull(r.actualRet);
+    const retCls = ret == null ? "" : (ret >= 0 ? "ret-pos" : "ret-neg");
+    const mae = parseFloatOrNull(r.mae);
+    const maeCls = mae == null ? "" : (mae < 0 ? "ret-neg" : "");
+    const resCls = r.result === "✓" ? "result-correct" : (r.result === "✗" ? "result-wrong" : "result-pending");
+    const resTxt = r.result || "—";
+    const reasonBadge = r.exitReason ? (r.exitReason === "跳空停損" ? `<span style="color:#C62828;font-weight:bold;">${r.exitReason}</span>` : r.exitReason) : "—";
+    tr.innerHTML = `
+      <td>${r.date}</td>
+      <td>${r.code}</td>
+      <td>${r.name}</td>
+      <td class="${dirCls}">${r.direction}</td>
+      <td>${r.entry || "—"}</td>
+      <td>${r.stop || "—"}</td>
+      <td>${r.target || "—"}</td>
+      <td>${r.exitDate || "—"}</td>
+      <td>${r.exitPrice || "—"}</td>
+      <td class="${retCls}">${r.actualRet ? (parseFloat(r.actualRet) >= 0 ? "+" : "") + parseFloat(r.actualRet).toFixed(2) + "%" : "—"}</td>
+      <td>${reasonBadge}</td>
+      <td class="${maeCls}">${r.mae ? parseFloat(r.mae).toFixed(2) + "%" : "—"}</td>
+      <td>${r.holdingDays || "—"}</td>
+      <td class="${resCls}">${resTxt}</td>`;
+    frag.appendChild(tr);
+  }
+  tbody.appendChild(frag);
+}
+
+function refreshAll() {
+  const filtered = applyFilter();
+  const sorted = sortRows(filtered);
+  renderStats(sorted);
+  renderTable(sorted);
+  renderChart(filtered);
+  updateCaptureMeta(filtered.length);
+}
+
+let cumChart = null;
+function renderChart(rows) {
+  // 用「實際報酬%」（事件結算後已依方向調整：做空時，價跌 = 正報酬）。
+  // 若該筆沒有實際報酬%，fallback 到 T+7 報酬%（需手動翻號）。
+  const settled = rows
+    .filter(r => r.result === "✓" || r.result === "✗")
+    .map(r => {
+      const actual = parseFloatOrNull(r.actualRet);
+      if (actual != null) {
+        return { date: r.date, direction: r.direction, stratRet: actual };
+      }
+      const raw = parseFloatOrNull(r.ret);
+      if (raw == null) return null;
+      return {
+        date: r.date,
+        direction: r.direction,
+        stratRet: r.direction === "做空" ? -raw : raw,
+      };
+    })
+    .filter(x => x)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const empty = document.getElementById("chartEmpty");
+  const canvas = document.getElementById("cumChart");
+  if (settled.length === 0) {
+    if (cumChart) { cumChart.destroy(); cumChart = null; }
+    canvas.style.display = "none";
+    empty.style.display = "block";
+    return;
+  }
+  canvas.style.display = "block";
+  empty.style.display = "none";
+
+  const byDate = {};
+  for (const r of settled) {
+    if (!byDate[r.date]) byDate[r.date] = [];
+    byDate[r.date].push(r);
+  }
+  const dates = Object.keys(byDate).sort();
+  const mean = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+
+  let cumAll = 0, cumLong = 0, cumShort = 0;
+  const allLine = [], longLine = [], shortLine = [];
+  for (const d of dates) {
+    const recs = byDate[d];
+    const allM = mean(recs.map(r => r.stratRet));
+    const longM = mean(recs.filter(r => r.direction === "做多").map(r => r.stratRet));
+    const shortM = mean(recs.filter(r => r.direction === "做空").map(r => r.stratRet));
+    if (allM != null) cumAll += allM;
+    if (longM != null) cumLong += longM;
+    if (shortM != null) cumShort += shortM;
+    allLine.push(cumAll);
+    longLine.push(cumLong);
+    shortLine.push(cumShort);
+  }
+
+  const data = {
+    labels: dates,
+    datasets: [
+      { label: "整體", data: allLine, borderColor: "#1F3A5F", backgroundColor: "rgba(31,58,95,.08)", tension: 0.2, borderWidth: 2, fill: true, pointRadius: 2 },
+      { label: "做多", data: longLine, borderColor: "#C62828", backgroundColor: "rgba(198,40,40,.04)", tension: 0.2, borderWidth: 1.5, fill: false, pointRadius: 2 },
+      { label: "做空", data: shortLine, borderColor: "#2E7D32", backgroundColor: "rgba(46,125,50,.04)", tension: 0.2, borderWidth: 1.5, fill: false, pointRadius: 2 },
+    ],
+  };
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: "index", intersect: false },
+    plugins: {
+      legend: { position: "top", labels: { font: { size: 12 }, boxWidth: 14 } },
+      tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? "+" : ""}${ctx.parsed.y.toFixed(2)}%` } },
+    },
+    scales: {
+      x: { ticks: { autoSkip: true, maxTicksLimit: 10, font: { size: 10 } }, grid: { display: false } },
+      y: { ticks: { callback: (v) => (v >= 0 ? "+" : "") + v.toFixed(1) + "%", font: { size: 11 } }, grid: { color: "#EEE" } },
+    },
+  };
+
+  if (cumChart) {
+    cumChart.data = data;
+    cumChart.options = options;
+    cumChart.update();
+  } else {
+    cumChart = new Chart(canvas.getContext("2d"), { type: "line", data, options });
+  }
+}
+
+function parseDateStr(s) {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function fmtDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+function applyPreset(preset) {
+  const today = parseDateStr(META.defaultEnd);
+  let start = "", end = "";
+  if (preset === "all") {
+    start = ""; end = "";
+  } else if (preset === "7") {
+    end = fmtDate(today);
+    const s = new Date(today); s.setDate(s.getDate() - 6);
+    start = fmtDate(s);
+  } else if (preset === "30") {
+    end = fmtDate(today);
+    const s = new Date(today); s.setDate(s.getDate() - 29);
+    start = fmtDate(s);
+  } else if (preset === "month") {
+    start = fmtDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    end = fmtDate(new Date(today.getFullYear(), today.getMonth() + 1, 0));
+  } else if (preset === "prevmonth") {
+    start = fmtDate(new Date(today.getFullYear(), today.getMonth() - 1, 1));
+    end = fmtDate(new Date(today.getFullYear(), today.getMonth(), 0));
+  }
+  document.getElementById("dateStart").value = start;
+  document.getElementById("dateEnd").value = end;
+  document.querySelectorAll("[data-preset]").forEach(b => b.classList.toggle("active", b.dataset.preset === preset));
+  refreshAll();
+}
+
+function updateCaptureMeta(n) {
+  const f = readFilters();
+  const parts = [];
+  if (f.start || f.end) parts.push(`期間 ${f.start || "—"} ~ ${f.end || "—"}`);
+  if (f.direction) parts.push(`方向：${f.direction}`);
+  if (f.search) parts.push(`關鍵字：${f.search}`);
+  parts.push(`共 ${n} 筆`);
+  document.getElementById("captureMeta").textContent = parts.join(" · ");
+}
+
+document.querySelectorAll("th.sortable").forEach(th => {
+  th.addEventListener("click", () => {
+    const k = th.dataset.key;
+    if (sortKey === k) sortDir = -sortDir;
+    else { sortKey = k; sortDir = (k === "date" || k === "ret") ? -1 : 1; }
+    document.querySelectorAll("th.sortable .sort-arrow").forEach(a => a.textContent = "");
+    th.querySelector(".sort-arrow").textContent = sortDir > 0 ? "▲" : "▼";
+    refreshAll();
+  });
+});
+
+["dateStart","dateEnd","dirSelect","resultSelect","exitReasonSelect","scoreMin","scoreMax","searchBox"].forEach(id => {
+  document.getElementById(id).addEventListener("input", refreshAll);
+});
+
+// 手動改日期時清除快捷時段的 active 狀態
+["dateStart","dateEnd"].forEach(id => {
+  document.getElementById(id).addEventListener("input", () => {
+    document.querySelectorAll("[data-preset]").forEach(b => b.classList.remove("active"));
+  });
+});
+
+document.querySelectorAll("[data-preset]").forEach(btn => {
+  btn.addEventListener("click", () => applyPreset(btn.dataset.preset));
+});
+
+document.getElementById("resetBtn").addEventListener("click", () => {
+  document.getElementById("dateStart").value = META.defaultStart;
+  document.getElementById("dateEnd").value = META.defaultEnd;
+  document.getElementById("dirSelect").value = "";
+  document.getElementById("resultSelect").value = "";
+  document.getElementById("exitReasonSelect").value = "";
+  document.getElementById("scoreMin").value = "";
+  document.getElementById("scoreMax").value = "";
+  document.getElementById("searchBox").value = "";
+  document.querySelectorAll("[data-preset]").forEach(b => b.classList.remove("active"));
+  refreshAll();
+});
+
+document.getElementById("exportPdfBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("exportPdfBtn");
+  btn.disabled = true;
+  btn.textContent = "產生 PDF 中...";
+  document.body.classList.add("capturing");
+  try {
+    const target = document.getElementById("captureArea");
+    const canvas = await html2canvas(target, { scale: 2, backgroundColor: "#F4F6F9", windowWidth: target.scrollWidth });
+    const imgData = canvas.toDataURL("image/jpeg", 0.92);
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: canvas.width > canvas.height ? "l" : "p", unit: "pt", format: "a4" });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const ratio = Math.min(pageW / canvas.width, pageH / canvas.height);
+    const w = canvas.width * ratio, h = canvas.height * ratio;
+    pdf.addImage(imgData, "JPEG", (pageW - w) / 2, (pageH - h) / 2, w, h);
+    const ts = new Date().toISOString().slice(0, 10);
+    pdf.save(`backtest_${ts}.pdf`);
+  } catch (e) {
+    alert("PDF 產生失敗：" + e.message);
+  } finally {
+    document.body.classList.remove("capturing");
+    btn.disabled = false;
+    btn.textContent = "📥 下載目前畫面 PDF";
+  }
+});
+
+document.getElementById("totalCount").textContent = RECORDS.length;
+document.getElementById("dateStart").value = META.defaultStart;
+document.getElementById("dateEnd").value = META.defaultEnd;
+document.querySelector('th[data-key="date"] .sort-arrow').textContent = "▼";
+refreshAll();
+</script>
+</body>
+</html>
